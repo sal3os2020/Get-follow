@@ -1,0 +1,75 @@
+const puppeteer = require('puppeteer-extra');
+const puppeteerStealth = require('puppeteer-extra-plugin-stealth');
+const faker = require('faker');
+
+// تفعيل Stealth لتجاوز آليات الكشف عن الروبوتات
+puppeteer.use(puppeteerStealth());
+
+// دالة لإنشاء حساب وهمي على تيك توك
+async function createFakeAccount(page) {
+  await page.goto('https://www.tiktok.com/signup', { waitUntil: 'networkidle0' });
+
+  const username = faker.internet.userName();
+  const email = faker.internet.email();
+  const password = faker.internet.password();
+
+  await page.type('input[name="email"]', email);
+  await page.type('input[name="password"]', password);
+  await page.type('input[name="username"]', username);
+  await page.select('select[name="birth_day"]', '15');
+  await page.select('select[name="birth_month"]', '1');
+  await page.select('select[name="birth_year"]', '2000');
+
+  await page.waitForSelector('button[type="submit"]');
+  await page.click('button[type="submit"]');
+  await page.waitForTimeout(5000);
+
+  console.log(`تم إنشاء حساب جديد: ${username} | كلمة المرور: ${password}`);
+
+  return { username, password };
+}
+
+// دالة لتغيير الـ IP باستخدام Tor
+async function changeIP() {
+  // تأكد من تشغيل Tor أولاً في Termux باستخدام الأمر:
+  // tor
+
+  console.log("تغيير الـ IP باستخدام Tor...");
+
+  return new Promise((resolve, reject) => {
+    exec('curl --socks5-hostname 127.0.0.1:9050 https://api.ipify.org', (err, stdout, stderr) => {
+      if (err) {
+        reject(`خطأ: ${stderr}`);
+      } else {
+        console.log(`تم تغيير الـ IP إلى: ${stdout}`);
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+// دالة لإنشاء 100 حساب وهمي مع تغيير الـ IP بعد كل حساب
+async function createAccounts() {
+  const browser = await puppeteer.launch({ headless: false });
+  const page = await browser.newPage();
+
+  const accounts = [];
+
+  for (let i = 0; i < 100; i++) {
+    console.log(`تغيير الـ IP قبل الحساب رقم ${i + 1}`);
+    await changeIP();
+
+    const account = await createFakeAccount(page);
+    accounts.push(account);
+    console.log(`تم إنشاء الحساب رقم ${i + 1}`);
+  }
+
+  await browser.close();
+
+  console.log('تم إنشاء الحسابات التالية:');
+  accounts.forEach(account => {
+    console.log(`اسم المستخدم: ${account.username} | كلمة المرور: ${account.password}`);
+  });
+}
+
+createAccounts();
